@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+    <title>YUI 3 gallery treeview test</title>
+    <link type="text/css" rel="stylesheet" href="../../build/gallery-treeview/assets/skins/sam/gallery-treeview.css" />
+</head>
+<body class="skin-sam">
+    <div id="treeDiv1">tree</div>
+    <script src="http://yui.yahooapis.com/3.0.0/build/yui/yui-debug.js" type="text/javascript"></script> 
+    <script src="../../build/gallery-treeview/gallery-treeview-debug.js" type="text/javascript"></script> 
+    <script type="text/javascript">
+        YUI({
+            modules: {
+                'gallery-port': {
+                    fullpath: '../../build/gallery-port/gallery-port-min.js',
+                    requires: ['base','node']
+                },
+
+                'gallery-treeview': {
+                    fullpath: '../../build/gallery-treeview/gallery-treeview-min.js',
+                    requires: ['gallery-port']
+                }
+            },
+
+            filter: 'debug',
+
+            logExclude: {
+                attribute: true,
+                event: true,
+                base: true,
+                deprecated: true,
+                Selector: true
+            }
+
+        }).use('gallery-treeview', function(Y) {
+            //Creating the local YAHOO copy
+            var YAHOO = Y.Port(),
+                Lang = YAHOO.lang,
+                Dom = YAHOO.util.Dom,
+                Event = YAHOO.util.Event;
+
+            //global variable to allow console inspection of tree:
+            var tree;
+
+
+            //function to initialize the tree:
+            function treeInit() {
+                buildRandomTextNodeTree();
+            }
+            
+            //Function  creates the tree and 
+            //builds between 3 and 7 children of the root node:
+            function buildRandomTextNodeTree() {
+            
+                //instantiate the tree:
+                tree = new YAHOO.widget.TreeView("treeDiv1");
+
+                for (var i = 0; i < Math.floor((Math.random()*4) + 3); i++) {
+                    var tmpNode = new YAHOO.widget.TextNode("label-" + i, tree.getRoot(), false);
+                    // tmpNode.collapse();
+                    // tmpNode.expand();
+                    // buildRandomTextBranch(tmpNode);
+                    buildLargeBranch(tmpNode);
+                }
+
+               // Expand and collapse happen prior to the actual expand/collapse,
+               // and can be used to cancel the operation
+               tree.subscribe("expand", function(node) {
+                      YAHOO.log(node.index + " was expanded", "info", "example");
+                      // return false; // return false to cancel the expand
+                   });
+
+               tree.subscribe("collapse", function(node) {
+                      YAHOO.log(node.index + " was collapsed", "info", "example");
+                   });
+
+               // Trees with TextNodes will fire an event for when the label is clicked:
+               tree.subscribe("labelClick", function(node) {
+                      YAHOO.log(node.index + " label was clicked", "info", "example");
+                   });
+
+                //The tree is not created in the DOM until this method is called:
+                tree.draw();
+            }
+
+            //function builds 10 children for the node you pass in:
+            function buildLargeBranch(node) {
+                if (node.depth < 10) {
+                    YAHOO.log("buildRandomTextBranch: " + node.index, "info", "example");
+                    for ( var i = 0; i < 10; i++ ) {
+                        new YAHOO.widget.TextNode(node.label + "-" + i, node, false);
+                    }
+                }
+            }
+
+            //Add a window onload handler to build the tree when the load
+            //event fires.
+            Y.on('domready', treeInit);
+
+        });
+    </script>
+</body>
+</html>

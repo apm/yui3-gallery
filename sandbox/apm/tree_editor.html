@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+    <title>YUI 3 gallery treeview test</title>
+    <link type="text/css" rel="stylesheet" href="../../build/gallery-treeview/assets/skins/sam/gallery-treeview.css" />
+
+</head>
+<body class="yui-skin-sam">
+    <div id="treeDiv1">tree1</div>
+    <div id="treeView">tree2</div>
+    <div id="msg">msg</div>
+    <!--
+    <script src="http://yui.yahooapis.com/3.0.0/build/yui/yui-debug.js" type="text/javascript"></script> 
+    -->
+    <script src="../../../yui3/build/yui/yui-debug.js" type="text/javascript"></script> 
+    <script src="../../build/gallery-treeview/gallery-treeview-debug.js" type="text/javascript"></script> 
+    <script type="text/javascript">
+        YUI({
+            modules: {
+                'gallery-port': {
+                    fullpath: '../../build/gallery-port/gallery-port-min.js',
+                    requires: ['base','node']
+                },
+
+                'gallery-treeview': {
+                    fullpath: '../../build/gallery-treeview/gallery-treeview-min.js',
+                    requires: ['gallery-port']
+                }
+            },
+
+            filter: 'debug',
+
+            logExclude: {
+                attribute: true,
+                event: true,
+                base: true,
+                deprecated: true,
+                Selector: true
+            }
+
+        }).use('gallery-treeview', function(Y) {
+            //Creating the local YAHOO copy
+            var YAHOO = Y.Port(),
+                Lang = YAHOO.lang,
+                Dom = YAHOO.util.Dom,
+                Event = YAHOO.util.Event;
+
+// Create a tree with an assortment of nodes
+tree = new YAHOO.widget.TreeView("treeView", [
+	'Label 0',
+	{type:'Text', label:'Label 1', editable:true},
+	{type:'Text', label:'Branch 2', editable:true, expanded:true, children:[
+		{type:'Text', label:'Branch 2-0', editable:true, children: [
+			'Label 2-0-0',
+			'Label 2-0-1'
+		]},
+		
+		{type:'Text', label:'Branch 2-1', editable:true, children: [
+			'Label 2-1-0',
+			'Label 2-1-1'
+		]},
+	]},
+	{type:'Text',label:'YAHOO', href:'http://www.yahoo.com', target:'YAHOO\'s home page'},
+	{type:'DateNode',label:'31.3.2001',editable:true, calendarConfig: {
+		DATE_FIELD_DELIMITER:".",
+		MDY_DAY_POSITION:1,
+		MDY_MONTH_POSITION:2,
+		MDY_YEAR_POSITION:3
+	}},
+	{type:'Text',label:'Branch 3', editable:true, expanded:false, children:[
+		'Label 3-0',
+		'Label 3-1'
+	]}
+]);
+
+// render it
+tree.render();
+
+// tree.on('dblClickEvent', function(e) {alert('asdf');});
+
+// Make the editor pop-up on a double click
+tree.on('dblClickEvent', tree.onEventEditNode);
+
+// uses a YUI2 feature not implemented in YUI3
+tree._hasDblClickSubscriber = true;
+
+// Place the focus on the second node
+tree.root.children[1].focus();
+
+// report events
+tree.on('enterKeyPressed',function(node) {
+	Y.get('#msg').innerHTML = 'Enter key pressed on node: ' + node.label;
+	Y.get('#msg').set('innerHTML', 'Enter key on node: ' + node.label)
+});
+tree.on('clickEvent',function(oArgs) {
+	Y.get('#msg').set('innerHTML', 'Click on node: ' + oArgs.node.label)
+});
+tree.on('dblClickEvent',function(oArgs) {
+	Y.get('#msg').set('innerHTML', 'Double click on node: ' + oArgs.node.label)
+});
+
+
+        });
+    </script>
+</body>
+</html>
