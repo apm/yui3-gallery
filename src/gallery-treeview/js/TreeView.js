@@ -69,9 +69,7 @@ var TV = function(id, oConfig) {
 
 TV.KEY = KEY;
 Widget.TreeView = TV;
-
 var NS = Y.namespace('apm');
-
 NS.TreeView = TV;
 
 // YAHOO.augment(TV, YAHOO.util.EventProvider);
