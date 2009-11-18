@@ -47,8 +47,6 @@ Y.extend(SimpleSlider, Y.Base, {
         // delegate the mousedown so the user can continue to drag after the contentbox click
         dd._handleMouseDownEvent(e);
 
-        console.log('alignNode: ' + [e.pageX, e.pageY]);
-        
         // make a call to an internal drag method that will apply the constraints
         dd._alignNode([e.pageX, e.pageY]);
 
