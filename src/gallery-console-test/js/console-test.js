@@ -1,11 +1,15 @@
 "use strict";
 
+/**
+ * @module gallery-console-test
+ */
+
 /**********************************************************************
  * <p>Adds a menu of registered unit test suites to the YUI 3 Console.</p>
  *
- * @module gallery-console-test
- * @namespace Plugin
+ * @main gallery-console-test
  * @class ConsoleTest
+ * @namespace Plugin
  * @extends Plugin.Base
  */
 
@@ -44,7 +48,7 @@ Y.extend(ConsoleTest, Y.Plugin.Base,
 
 	destructor: function()
 	{
-		this.container.remove();
+		this.container.remove(true);
 	},
 
 	renderUI: function()
@@ -56,8 +60,8 @@ Y.extend(ConsoleTest, Y.Plugin.Base,
 				Y.Lang.sub(
 					'<div class="{c}">' +
 						'<select class="menu"></select>' +
-						'<button class="run">{b1}</button>' +
-						'<button class="refresh">{b2}</button>' +
+						'<button type="button" class="run">{b1}</button>' +
+						'<button type="button" class="refresh">{b2}</button>' +
 					'</div>',
 				{
 					c:  Y.ClassNameManager.getClassName('console', 'test', 'container'),

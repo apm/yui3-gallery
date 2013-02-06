@@ -1,6 +1,10 @@
-YUI.add('gallery-quickedit', function(Y) {
+YUI.add('gallery-quickedit', function (Y, NAME) {
 
 "use strict";
+
+/**
+ * @module gallery-quickedit
+ */
 
 /**
  * <p>The QuickEdit plugin provides a new mode for DataTable where all
@@ -110,9 +114,9 @@ YUI.add('gallery-quickedit', function(Y) {
  * function. The work should normally be done inline in the formatter
  * function, but the name of the sample function makes the point clear.</p>
  *
- * @module gallery-quickedit
- * @namespace Plugin
+ * @main gallery-quickedit
  * @class DataTableQuickEdit
+ * @namespace Plugin
  * @extends Plugin.Base
  * @constructor
  * @param config {Object} Object literal to set component configuration.
@@ -136,6 +140,30 @@ QuickEdit.ATTRS =
 	{
 		value:     [],
 		validator: Y.Lang.isArray
+	},
+
+	/**
+	 * @attribute includeAllRowsInChanges
+	 * @description If true, getChanges() returns a record for every row, even if the record is empty.  Set to false if you want getChanges() to only return records that contain data.
+	 * @type Boolean
+	 * @default true
+	 */
+	includeAllRowsInChanges:
+	{
+		value:     true,
+		validator: Y.Lang.isBoolean
+	},
+
+	/**
+	 * @attribute includeRowIndexInChanges
+	 * @description If true, getChanges() includes the row index in each record, using the _row_index key.
+	 * @type Boolean
+	 * @default false
+	 */
+	includeRowIndexInChanges:
+	{
+		value:     false,
+		validator: Y.Lang.isBoolean
 	}
 };
 
@@ -150,7 +178,8 @@ var quick_edit_re          = /quickedit-key:([^\s]+)/,
 /**
  * The CSS class that marks the container for the error message inside a cell.
  *
- * @property Y.Plugin.DataTableQuickEdit.error_text_class
+ * @property error_text_class
+ * @static
  * @type {String}
  */
 QuickEdit.error_text_class = 'quickedit-message-text';
@@ -158,7 +187,8 @@ QuickEdit.error_text_class = 'quickedit-message-text';
 /**
  * The markup for the container for the error message inside a cell.
  *
- * @property Y.Plugin.DataTableQuickEdit.error_display_markup
+ * @property error_display_markup
+ * @static
  * @type {String}
  */
 QuickEdit.error_display_markup = '<div class="quickedit-message-text"></div>';
@@ -166,7 +196,8 @@ QuickEdit.error_display_markup = '<div class="quickedit-message-text"></div>';
 /**
  * The CSS class that marks the "Copy Down" button inside a cell.
  *
- * @property Y.Plugin.DataTableQuickEdit.copy_down_button_class
+ * @property copy_down_button_class
+ * @static
  * @type {String}
  */
 QuickEdit.copy_down_button_class = 'quickedit-copy-down';
@@ -177,6 +208,7 @@ QuickEdit.copy_down_button_class = 'quickedit-copy-down';
  *
  * @method textFormatter
  * @static
+ * @param o {Object} standard DataTable formatter data
  */
 QuickEdit.textFormatter = function(o)
 {
@@ -200,6 +232,7 @@ QuickEdit.textFormatter = function(o)
  *
  * @method textareaFormatter
  * @static
+ * @param o {Object} standard DataTable formatter data
  */
 QuickEdit.textareaFormatter = function(o)
 {
@@ -225,6 +258,7 @@ QuickEdit.textareaFormatter = function(o)
  *
  * @method readonlyEmailFormatter
  * @static
+ * @param o {Object} standard DataTable formatter data
  */
 QuickEdit.readonlyEmailFormatter = function(o)
 {
@@ -239,17 +273,19 @@ QuickEdit.readonlyEmailFormatter = function(o)
  *
  * @method readonlyLinkFormatter
  * @static
+ * @param o {Object} standard DataTable formatter data
  */
 QuickEdit.readonlyLinkFormatter = function(o)
 {
 	return (o.value || '');		// don't need to check for zero
 };
 
-/**
+/*
  * Copy value from first cell to all other cells in the column.
  *
- * @param e {Event} triggering event
+ * @method copyDown
  * @private
+ * @param e {Event} triggering event
  */
 function copyDown(e)
 {
@@ -295,7 +331,7 @@ QuickEdit.copyDownFormatter = function(o, td)
 {
 	if (o.column.quickEdit.copyDown && o.rowIndex === 0)
 	{
-		return Y.Lang.sub('<button title="Copy down" class="{c}">&darr;</button>',
+		return Y.Lang.sub('<button type="button" title="Copy down" class="{c}">&darr;</button>',
 		{
 			c: QuickEdit.copy_down_button_class
 		});
@@ -321,10 +357,8 @@ function wrapFormatter(editFmt, origFmt)
 	};
 }
 
-/**
+/*
  * Shift the focus up/down within a column.
- *
- * @private
  */
 function moveFocus(e)
 {
@@ -341,7 +375,7 @@ function moveFocus(e)
 	}
 }
 
-/**
+/*
  * Parse the column configuration for easy lookup.
  */
 function parseColumns()
@@ -374,12 +408,13 @@ function parseColumns()
 	this.column_map  = map;
 }
 
-/**
+/*
  * Validate the given form fields.
  *
+ * @method validateElements
+ * @private
  * @param e {Array} Array of form fields.
  * @return {boolean} true if all validation checks pass
- * @private
  */
 function validateElements(
 	/* NodeList */ list)
@@ -451,6 +486,8 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	/**
 	 * Switch to QuickEdit mode.  Columns that have quickEdit defined will
 	 * be editable.  If the table has paginators, you must hide them.
+	 * 
+	 * @method start
 	 */
 	start: function()
 	{
@@ -469,9 +506,9 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 //			this.saveEdit.push(col.editor);
 //			col.editor = null;
 
-			var qe  = col.quickEdit;
-			var qef = col.qeFormatter;
-			if (/*!col.hidden &&*/ (qe || qef))
+			var qe  = col.quickEdit,
+				qef = col.qeFormatter;
+			if (/* !col.hidden && */ (qe || qef))
 			{
 				var fn = null;
 				if (qe && Y.Lang.isFunction(qe.formatter))
@@ -516,6 +553,8 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	 * Stop QuickEdit mode.  THIS DISCARDS ALL DATA!  If you want to save
 	 * the data, call getChanges() BEFORE calling this function.  If the
 	 * table has paginators, you must show them.
+	 * 
+	 * @method cancel
 	 */
 	cancel: function()
 	{
@@ -558,9 +597,16 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	 * Return the changed values.  For each row, an object is created with
 	 * only the changed values.  The object keys are the column keys.  If
 	 * you need values from particular columns to be included always, even
-	 * if the value did not change, include the key "changesAlwaysInclude"
+	 * if the value did not change, include the key `changesAlwaysInclude`
 	 * in the plugin configuration and pass an array of column keys.
+	 * If you need the row indexes, configure `includeRowIndexInChanges`.
+	 * 
+	 * If you only want the records with changes, configure
+	 * `includeAllRowsInChanges` to be false.  For this to be useful, you
+	 * will need to configure either `changesAlwaysInclude` or
+	 * `includeRowIndexInChanges`.
 	 *
+	 * @method getChanges
 	 * @return {mixed} array of objects if all validations pass, false otherwise
 	 */
 	getChanges: function()
@@ -570,8 +616,10 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 			return false;
 		}
 
-		var changes       = [];
-		var alwaysInclude = this.get('changesAlwaysInclude');
+		var changes        = [],
+			always_include = this.get('changesAlwaysInclude'),
+			include_index  = this.get('includeRowIndexInChanges'),
+			include_all    = this.get('includeAllRowsInChanges');
 
 		var host      = this.get('host');
 		var rows      = host._tbodyNode.get('children');
@@ -579,8 +627,8 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 		{
 			var list = rows.item(i).all('.quickedit-field');
 
-			var change = {};
-			changes.push(change);
+			var change  = {},
+				changed = false;
 
 			var field_count = list.size();
 			for (var j=0; j<field_count; j++)
@@ -595,13 +643,24 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 						val !== (prev ? prev.toString() : ''))
 				{
 					change[key] = val;
+					changed     = true;
 				}
 			}
 
-			for (var j=0; j<alwaysInclude.length; j++)
+			if (changed || include_all)
 			{
-				var key     = alwaysInclude[j];
-				change[key] = rec.get(key);
+				for (var j=0; j<always_include.length; j++)
+				{
+					var key     = always_include[j];
+					change[key] = rec.get(key);
+				}
+
+				if (include_index)
+				{
+					change._row_index = i;
+				}
+
+				changes.push(change);
 			}
 		},
 		this);
@@ -612,6 +671,7 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	/**
 	 * Validate the QuickEdit data.
 	 *
+	 * @method validate
 	 * @return {boolean} true if all validation checks pass
 	 */
 	validate: function()
@@ -638,6 +698,8 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 
 	/**
 	 * Clear all validation messages in QuickEdit mode.
+	 * 
+	 * @method clearMessages
 	 */
 	clearMessages: function()
 	{
@@ -658,6 +720,7 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	 * Display a message for a QuickEdit field.  If an existing message with
 	 * a higher precedence is already visible, it will not be replaced.
 	 *
+	 * @method displayMessage
 	 * @param e {Element} form field
 	 * @param msg {String} message to display
 	 * @param type {String} message type: error, warn, success, info
@@ -704,10 +767,11 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	/**
 	 * Return the status of the field.
 	 *
+	 * @method _getElementStatus
+	 * @protected
 	 * @param e {Node} form field
 	 * @param r {RegExp} regex to match against className
 	 * @return {String}
-	 * @protected
 	 */
 	_getElementStatus: function(
 		/* Node */	e,
@@ -720,9 +784,10 @@ Y.extend(QuickEdit, Y.Plugin.Base,
 	/**
 	 * Return the column key for the specified field.
 	 * 
+	 * @method _getColumnKey
+	 * @protected
 	 * @param e {Node} form field
 	 * @return {String}
-	 * @protected
 	 */
 	_getColumnKey: function(
 		/* Node */ e)
@@ -736,4 +801,15 @@ Y.namespace("Plugin");
 Y.Plugin.DataTableQuickEdit = QuickEdit;
 
 
-}, 'gallery-2012.04.04-17-55' ,{skinnable:true, optional:['gallery-scrollintoview'], requires:['datatable-base','gallery-formmgr-css-validation','gallery-node-optimizations','gallery-funcprog']});
+}, 'gallery-2013.01.16-21-05', {
+    "skinnable": "true",
+    "requires": [
+        "datatable-base",
+        "gallery-formmgr-css-validation",
+        "gallery-node-optimizations",
+        "gallery-funcprog"
+    ],
+    "optional": [
+        "gallery-scrollintoview"
+    ]
+});

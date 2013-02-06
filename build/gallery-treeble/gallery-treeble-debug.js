@@ -1,4 +1,4 @@
-YUI.add('gallery-treeble', function(Y) {
+YUI.add('gallery-treeble', function (Y, NAME) {
 
 "use strict";
 
@@ -19,7 +19,8 @@ YUI.add('gallery-treeble', function(Y) {
  * is that filtering and sorting are allowed.  This is done by detecting
  * that the request parameters have changed.)</p>
  * 
- * @class TreebleDataSource
+ * @namespace DataSource
+ * @class Treeble
  * @extends DataSource.Local
  * @constructor
  * @param config {Object}
@@ -83,7 +84,7 @@ TreebleDataSource.ATTRS =
 	 *		<code>totalRecordsExpr</code> takes priority.</dd>
 	 * </dl>
 	 * 
-	 * @config root
+	 * @attribute root
 	 * @type {DataSource}
 	 * @writeonce
 	 */
@@ -97,7 +98,7 @@ TreebleDataSource.ATTRS =
 	 * nodes into the list.  The default (<code>false</code>) is to
 	 * paginate only root nodes, so all children are visible.
 	 * 
-	 * @config paginateChildren
+	 * @attribute paginateChildren
 	 * @type {boolean}
 	 * @default false
 	 * @writeonce
@@ -114,7 +115,7 @@ TreebleDataSource.ATTRS =
 	 * across the entire tree.  If this is not specified, then all nodes
 	 * will close when the data is sorted.
 	 * 
-	 * @config uniqueIdKey
+	 * @attribute uniqueIdKey
 	 * @type {String}
 	 */
 	uniqueIdKey:
@@ -122,6 +123,13 @@ TreebleDataSource.ATTRS =
 		validator: Y.Lang.isString
 	}
 };
+
+/**
+ * @event toggled
+ * @description Fires after an element is opened or closed.
+ * @param path {Array} the path to the toggled element
+ * @param open {Boolean} the new state of the element
+ */
 
 /*
 
@@ -204,6 +212,8 @@ function populateOpen(
 					item.childTotal = cached_item.childTotal;
 					this._redo      = this._redo || item.open;
 				}
+
+				this._open_cache[ data[k][ uniqueIdKey ] ] = item;
 			}
 
 			if (!cached_item && nodeOpenKey && data[k][ nodeOpenKey ])
@@ -212,7 +222,6 @@ function populateOpen(
 			}
 
 			open.splice(j, 0, item);
-			this._open_cache[ data[k][ uniqueIdKey ] ] = item;
 		}
 
 		j++;
@@ -280,9 +289,19 @@ function countVisibleNodes(
 	return total;
 }
 
-function requestTree()
+function requestTree(flush_toggle)
 {
+	if (!flush_toggle)
+	{
+		var save_toggle = this._toggle.slice(0);
+	}
+
 	this._cancelAllRequests();
+
+	if (!flush_toggle)
+	{
+		this._toggle = save_toggle;
+	}
 
 	this._redo                = false;
 	this._generating_requests = true;
@@ -353,7 +372,7 @@ function getVisibleSlicesPgTop(
 				end:   skip + show - 1
 			});
 
-			if (m + delta == skip + show)
+			if (m + delta == skip + show && node.childTotal > 0)
 			{
 				slices = slices.concat(
 					getVisibleSlicesPgTop(0, node.childTotal, node.ds,
@@ -715,7 +734,8 @@ function checkFinished()
 	}
 	else if (this._toggle.length > 0)
 	{
-		this.toggle(this._toggle[0], Y.clone(this._callback.request, true),
+		var t = this._toggle.shift();
+		this.toggle(t, Y.clone(this._callback.request, true),
 		{
 			fn: function()
 			{
@@ -726,8 +746,8 @@ function checkFinished()
 		return;
 	}
 
-	var response = {};
-	Y.mix(response, this._topResponse);
+	var response = { meta:{} };
+	Y.mix(response, this._topResponse, true);
 	response.results = [];
 	response         = Y.clone(response, true);
 
@@ -762,7 +782,7 @@ function checkFinished()
 	this.fire('response', this._callback);
 }
 
-function toggleSuccess(e, node, completion)
+function toggleSuccess(e, node, completion, path)
 {
 	if (node.ds.treeble_config.totalRecordsExpr)
 	{
@@ -776,15 +796,27 @@ function toggleSuccess(e, node, completion)
 	node.open     = true;
 	node.children = [];
 	complete(completion);
+
+	this.fire('toggled',
+	{
+		path: path,
+		open: node.open
+	});
 }
 
-function toggleFailure(e, node, completion)
+function toggleFailure(e, node, completion, path)
 {
 	node.childTotal = 0;
 
 	node.open     = true;
 	node.children = [];
 	complete(completion);
+
+	this.fire('toggled',
+	{
+		path: path,
+		open: node.open
+	});
 }
 
 function complete(f)
@@ -797,6 +829,28 @@ function complete(f)
 	{
 		f.fn.apply(f.scope || window, Y.Lang.isUndefined(f.args) ? [] : f.args);
 	}
+}
+
+function compareRequests(r1, r2)
+{
+	var k1 = Y.Object.keys(r1),
+		k2 = Y.Object.keys(r2);
+
+	if (k1.length != k2.length)
+	{
+		return false;
+	}
+
+	for (var i=0; i<k1.length; i++)
+	{
+		var k = k1[i];
+		if (k != 'startIndex' && k != 'resultCount' && r1[k] !== r2[k])
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 Y.extend(TreebleDataSource, Y.DataSource.Local,
@@ -848,6 +902,7 @@ Y.extend(TreebleDataSource, Y.DataSource.Local,
 	},
 
 	/**
+	 * @method isOpen
 	 * @param path {Array} Path to node
 	 * @return {boolean} true if the node is open
 	 */
@@ -873,6 +928,7 @@ Y.extend(TreebleDataSource, Y.DataSource.Local,
 	 * DataSource.  Any code that assumes the node has been opened must be
 	 * passed in as a completion function.
 	 * 
+	 * @method toggle
 	 * @param path {Array} Path to the node
 	 * @param request {Object} {sort,dir,startIndex,resultCount}
 	 * @param completion {Function|Object} Function to call when the operation completes.  Can be object: {fn,scope,args}
@@ -901,8 +957,8 @@ Y.extend(TreebleDataSource, Y.DataSource.Local,
 				cfg:     node.ds.treeble_config.requestCfg,
 				callback:
 				{
-					success: Y.rbind(toggleSuccess, this, node, completion),
-					failure: Y.rbind(toggleFailure, this, node, completion)
+					success: Y.rbind(toggleSuccess, this, node, completion, path),
+					failure: Y.rbind(toggleFailure, this, node, completion, path)
 				}
 			});
 		}
@@ -910,54 +966,56 @@ Y.extend(TreebleDataSource, Y.DataSource.Local,
 		{
 			node.open = !node.open;
 			complete(completion);
+
+			this.fire('toggled',
+			{
+				path: path,
+				open: node.open
+			});
 		}
 		return true;
 	},
 
 	_defRequestFn: function(e)
 	{
-		if (this._callback)
+		// wipe out all state if the request parameters change
+
+		if (this._callback && !compareRequests(this._callback.request, e.request))
 		{
-			// wipe out all state if the request parameters change
-
-			Y.Object.some(this._callback.request, function(value, key)
-			{
-				if (key == 'startIndex' || key == 'resultCount')
-				{
-					return false;
-				}
-
-				if (value !== e.request[key])
-				{
-					this._open = [];
-					return true;
-				}
-			});
+			this._open = [];
 		}
 
 		this._callback = e;
-		requestTree.call(this);
+		requestTree.call(this, true);
 	},
 
 	_cancelAllRequests: function()
 	{
 		this._req    = [];
 		this._toggle = [];
+		delete this._topResponse;
 	}
 });
 
 Y.TreebleDataSource = TreebleDataSource;
+Y.namespace('DataSource').Treeble = TreebleDataSource;
+/**
+ * @module gallery-treeble
+ */
 
 /**
  * <p>Converts data to a DataSource.  Data can be an object containing both
  * <code>dataType</code> and <code>liveData</code>, or it can be <q>free
  * form</q>, e.g., an array of records or an XHR URL.</p>
  *
- * @namespace Parsers
+ * @class Parsers
+ */
+
+/**
  * @method treebledatasource
+ * @static
  * @param oData {mixed} Data to convert.
  * @return {DataSource} The new data source.
- * @static
  */
 Y.namespace("Parsers").treebledatasource = function(oData)
 {
@@ -1016,12 +1074,12 @@ Y.namespace("Parsers").treebledatasource = function(oData)
  * Treeble displays a tree of data in a table.
  *
  * @module gallery-treeble
+ * @main gallery-treeble
  */
 
 /**
  * Extension to DataTable for displaying tree data.
  *
- * @namespace
  * @class Treeble
  * @extends DataTable
  * @constructor
@@ -1038,8 +1096,8 @@ Treeble.NAME = "datatable";		// same styling
  * <p>Formatter for open/close twistdown.</p>
  *
  * @method twistdownFormatter
- * @param sendRequest {Function} Function that reloads DataTable
  * @static
+ * @param sendRequest {Function} Function that reloads DataTable
  */
 Treeble.buildTwistdownFormatter = function(sendRequest)
 {
@@ -1052,14 +1110,13 @@ Treeble.buildTwistdownFormatter = function(sendRequest)
 
 		if (o.data[key])
 		{
-			var path  = o.data._yui_node_path;
-			var open  = ds.isOpen(path);
-			var clazz = open ? 'row-open' : 'row-closed';
+			var path = o.data._yui_node_path;
 
 			o.td.addClass('row-toggle');
-			o.td.replaceClass(/row-(open|closed)/, clazz);
+			o.td.replaceClass('row-(open|closed)',
+				ds.isOpen(path) ? 'row-open' : 'row-closed');
 
-			o.td.on('click', function()
+			YUI.Env.add(Y.Node.getDOMNode(o.td), 'click', function()
 			{
 				ds.toggle(path, {}, sendRequest);
 			});
@@ -1067,7 +1124,7 @@ Treeble.buildTwistdownFormatter = function(sendRequest)
 			o.cell.set('innerHTML', '<a class="treeble-expand-nub" href="javascript:void(0);"></a>');
 		}
 
-		return true;	// keep the Y.Node instances
+		return false;	// discard Y.Node instances
 	};
 };
 
@@ -1080,6 +1137,8 @@ Treeble.buildTwistdownFormatter = function(sendRequest)
 Treeble.treeValueFormatter = function(o)
 {
 	var depth_class = 'treeble-depth-'+o.data._yui_node_depth;
+	o.rowClass     += ' ' + depth_class;
+	o.className    += ' treeble-value';
 	return '<span class="'+depth_class+'">'+o.value+'</span>';
 };
 
@@ -1102,4 +1161,4 @@ Y.extend(Treeble, Y.DataTable,
 Y.Treeble = Treeble;
 
 
-}, 'gallery-2012.04.04-17-55' ,{requires:['datasource'], skinnable:true});
+}, 'gallery-2012.12.05-21-01', {"skinnable": "true", "requires": ["datasource", "datatable"]});
